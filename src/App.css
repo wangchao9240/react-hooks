@@ -4,3 +4,7 @@
   color: inherit;
   outline: none;
 }
+
+.c-link {
+  cursor: pointer;
+}
