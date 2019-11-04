@@ -10,7 +10,7 @@ const FileList = ({ files, onFileClick, onSaveEdit, onFileDelete }) => {
       {
         files.map(file => (
           <li
-            className="list-group-item bg-light row d-flex align-items-center file-item"
+            className="list-group-item bg-light row d-flex align-items-center file-item mx-0"
             key={file.id}
           >
             <span className={'col-2'}>
@@ -20,10 +20,10 @@ const FileList = ({ files, onFileClick, onSaveEdit, onFileDelete }) => {
               ></FontAwesomeIcon>
             </span>
             <span className={'col-8'}>{file.title}</span>
-            <button onClick={() => {}} type="button" className="col-1 icon-button btn">
+            <button onClick={() => {}} type="button" className="col-2 icon-button btn">
               <FontAwesomeIcon title="编辑" size="lg" icon={faEdit}></FontAwesomeIcon>
             </button>
-            <button onClick={() => {}} type="button" className="col-1 icon-button btn">
+            <button onClick={() => {}} type="button" className="col-2 icon-button btn">
               <FontAwesomeIcon title="删除" size="lg" icon={faTrash}></FontAwesomeIcon>
             </button>
           </li>
