@@ -3,8 +3,12 @@ import FileSearch from './components/FileSearch'
 import FileList from './components/FileList'
 import BottomBtn from './components/BottomBtn'
 import { faPlus, faFileImport } from '@fortawesome/free-solid-svg-icons'
+import TabList from './components/TabList'
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css'
+
+import SimpleMDE from "react-simplemde-editor"
+import "easymde/dist/easymde.min.css"
 
 const data = [
   {
@@ -19,6 +23,17 @@ const data = [
     id: 3,
     title: '3'
   }
+]
+
+const defaultFiles = [
+  {
+    id: '1',
+    title: 'tab1'
+  },
+  {
+    id: '2',
+    title: 'tab2'
+  },
 ]
 
 function App() {
@@ -42,8 +57,21 @@ function App() {
             </div>
           </div>
         </div>
-        <div className="col bg-primary right-panel">
-          <h1>this is the right</h1>
+        <div className="col-9 right-panel">
+          <TabList
+            activeId={'1'}
+            onTabClick={(id) => console.log(id)}
+            onCloseTab={id => console.log(id)}
+            files={defaultFiles}
+            unSaveIds={['1', '2']}
+          ></TabList>
+          <SimpleMDE
+            onChange={val => console.log(val)}
+            value={'### ceshi'}
+            options={{
+              minHeight: '515px'
+            }}
+          ></SimpleMDE>
         </div>
       </div>
     </div>
