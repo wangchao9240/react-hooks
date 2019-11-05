@@ -13,6 +13,7 @@ const TabList = ({ files, activeId, unSaveIds, onTabClick, onCloseTab }) => {
         const withUnsavedMark = unSaveIds.includes(file.id)
         const fClassName = classNames({
           'nav-link': true,
+          // eslint-disable-next-line
           'active': file.id == activeId,
           'withUnsaved': withUnsavedMark
         })
@@ -44,7 +45,7 @@ const TabList = ({ files, activeId, unSaveIds, onTabClick, onCloseTab }) => {
 
 TabList.propTypes = {
   files: PropTypes.array,
-  activeId: PropTypes.string,
+  activeId: PropTypes.number,
   unSaveIds: PropTypes.array,
   onTabClick: PropTypes.func,
   onCloseTab: PropTypes.func
