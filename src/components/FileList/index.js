@@ -26,7 +26,7 @@ const FileList = ({ files, onFileClick, onSaveEdit, onFileDelete }) => {
     const editItem = files.find(file => file.id === editStatus)
     if (enterPress && editStatus && value.trim() !== '') {
       onSaveEdit(editItem.id, value)
-      closeSearch(editItem)
+      closeSearch()
     } else if (ESCPress && editStatus) {
       closeSearch(editItem)
     }

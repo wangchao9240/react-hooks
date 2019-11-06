@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faTimes } from '@fortawesome/free-solid-svg-icons'
 import PropTypes from 'prop-types'
@@ -13,17 +13,18 @@ const TabList = ({ files, activeId, unSaveIds, onTabClick, onCloseTab }) => {
         const withUnsavedMark = unSaveIds.includes(file.id)
         const fClassName = classNames({
           'nav-link': true,
+          // eslint-disable-next-line
           'active': file.id == activeId,
           'withUnsaved': withUnsavedMark
         })
         return (
           <li className="nav-item" key={file.id}>
+            {/* eslint-disable-next-line */}
             <a
               onClick={e => {
                 e.preventDefault()
                 onTabClick(file.id)
               }}
-              href="#"
               className={fClassName}
             >
               {file.title}

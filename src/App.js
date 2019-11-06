@@ -5,11 +5,16 @@ import FileList from './components/FileList'
 import BottomBtn from './components/BottomBtn'
 import { faPlus, faFileImport } from '@fortawesome/free-solid-svg-icons'
 import TabList from './components/TabList'
+import { flattenArr, objToArr } from './utils/helper'
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css'
 
 import SimpleMDE from "react-simplemde-editor"
 import "easymde/dist/easymde.min.css"
+
+const fs = window.require('fs')
+
+console.log(fs)
 
 const data = [
   {
@@ -30,17 +35,20 @@ const data = [
 ]
 
 function App() {
-  const [files, setFiles] = useState(data)
+  const [files, setFiles] = useState(flattenArr(data))
   const [activeFileId, setActiveFileId] = useState('')
   const [openedFileIds, setOpenedFileIds] = useState([])
   const [unsavedFileIds, setUnsavedFileIds] = useState([])
   const [searchedFiles, setSearchedFiles] = useState([])
 
-  const openedFiles = openedFileIds.map(openId => files.find(file => file.id === openId))
+  const filesArr = objToArr(files)
 
-  const activeFile = files.find(file => file.id === activeFileId)
+  const openedFiles = openedFileIds.map(openId => files[openId])
 
-  const fileListArr = searchedFiles.length > 0 ? searchedFiles : files
+  // const activeFile = files.find(file => file.id === activeFileId)
+  const activeFile = files[activeFileId]
+
+  const fileListArr = searchedFiles.length > 0 ? searchedFiles : filesArr
 
   const fileClick = fileId => {
     // set current active file
@@ -65,56 +73,41 @@ function App() {
   }
 
   const fileChange = (id, val) => {
-    // loop through file array update
-    const newFiles = files.map(file => {
-      if (file.id === id) file.body = val
-      return file
-    })
-    setFiles(newFiles)
+    const newFile = { ...files[id], body: val }
+    setFiles({ ...files, [id]: newFile })
     // udate unsavedIds
     if (!unsavedFileIds.includes(id)) setUnsavedFileIds([...unsavedFileIds, id])
   }
 
   const deleteFile = id => {
     // filter out the current file id
-    const newFiles = files.filter(file => file.id !== id)
-    setFiles(newFiles)
+    delete files[id]
+    setFiles(files)
     // close the tab if opened
     tabClose(id)
   }
 
   const updateFileName = (id, title) => {
-    // loop through files and update the title
-    const newFiles = files.map(file => {
-      if (file.id === id) {
-        file.title = title
-        file.isNew = false
-      }
-      return file
-    })
-    setFiles(newFiles)
+    const modifiedFile = { ...files[id], title, isNew: false }
+    setFiles({ ...files, [id]: modifiedFile })
   }
 
   const fileSearch = keyword => {
     // filter out the new files based on the keyword
-    const newFiles = files.filter(file => file.title.includes(keyword))
-
+    const newFiles = filesArr.filter(file => file.title.includes(keyword))
     setSearchedFiles(newFiles)
   }
 
   const createFile = () => {
     const newId = uuidv4()
-    const newFiles = [
-      ...files,
-      {
-        id: newId,
-        title: '',
-        body: '###请输入 Markdown',
-        createdAt: new Date().getTime(),
-        isNew: true
-      }
-    ]
-    setFiles(newFiles)
+    const newFile = {
+      id: newId,
+      title: '',
+      body: '###请输入 Markdown',
+      createdAt: new Date().getTime(),
+      isNew: true
+    }
+    setFiles({ ...files, [newId]: newFile })
   }
 
   return (
