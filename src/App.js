@@ -51,9 +51,19 @@ function App() {
 
   const fileListArr = searchedFiles.length > 0 ? searchedFiles : filesArr
 
-  const fileClick = fileId => {
+  const fileClick = async fileId => {
     // set current active file
     setActiveFileId(fileId)
+    const currentFile = files[fileId]
+    if (!currentFile.isLoaded) {
+      try {
+        const value = await fileHelper.readFile(currentFile.path)
+        const newFile = { ...files[fileId], body: value, isLoaded: true }
+        setFiles({ ...files, [fileId]: newFile })
+      } catch (err) {
+        console.log(`fileClickError: ${err}`)
+      }
+    }
     // if oepned files don't have the currentId
     // then add new FileId to oepnedFiles
     if (openedFileIds.includes(fileId)) return
