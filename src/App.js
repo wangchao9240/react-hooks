@@ -3,49 +3,50 @@ import uuidv4 from 'uuid/v4'
 import FileSearch from './components/FileSearch'
 import FileList from './components/FileList'
 import BottomBtn from './components/BottomBtn'
-import { faPlus, faFileImport } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faFileImport, faSave } from '@fortawesome/free-solid-svg-icons'
 import TabList from './components/TabList'
 import { flattenArr, objToArr } from './utils/helper'
+import fileHelper from './utils/fileHelper'
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css'
 
 import SimpleMDE from "react-simplemde-editor"
 import "easymde/dist/easymde.min.css"
 
-const fs = window.require('fs')
 
-console.log(fs)
+// require node.js modules
+const path = window.require('path')
+const { remote } = window.require('electron')
+const Store = window.require('electron-store')
 
-const data = [
-  {
-    id: '1',
-    title: '1',
-    body: '### ceshi1'
-  },
-  {
-    id: '2',
-    title: '2',
-    body: '### ceshi2'
-  },
-  {
-    id: '3',
-    title: '3',
-    body: '### ceshi3'
-  }
-]
+const fileStore = new Store({ name: 'Files Data' })
+
+const saveFilesToStore = files => {
+  // we don't have to store all infomations in file system, eg: isNew, body, etc
+  const filesStoreObj = objToArr(files).reduce((result, file) => {
+    const { id, path, title, createdAt } = file
+    result[id] = {
+      id,
+      path,
+      title,
+      createdAt
+    }
+    return result
+  }, {})
+  fileStore.set('files', filesStoreObj)
+}
 
 function App() {
-  const [files, setFiles] = useState(flattenArr(data))
+  const [files, setFiles] = useState(fileStore.get('files') || {})
   const [activeFileId, setActiveFileId] = useState('')
   const [openedFileIds, setOpenedFileIds] = useState([])
   const [unsavedFileIds, setUnsavedFileIds] = useState([])
   const [searchedFiles, setSearchedFiles] = useState([])
-
   const filesArr = objToArr(files)
+  const savedLocation = remote.app.getPath('documents')
 
   const openedFiles = openedFileIds.map(openId => files[openId])
 
-  // const activeFile = files.find(file => file.id === activeFileId)
   const activeFile = files[activeFileId]
 
   const fileListArr = searchedFiles.length > 0 ? searchedFiles : filesArr
@@ -79,17 +80,36 @@ function App() {
     if (!unsavedFileIds.includes(id)) setUnsavedFileIds([...unsavedFileIds, id])
   }
 
-  const deleteFile = id => {
-    // filter out the current file id
-    delete files[id]
-    setFiles(files)
-    // close the tab if opened
-    tabClose(id)
+  const deleteFile = async id => {
+    try {
+      await fileHelper.deleteFile(files[id].path)
+      // filter out the current file id
+      delete files[id]
+      setFiles(files)
+      saveFilesToStore(files)
+      // close the tab if opened
+      tabClose(id)
+    } catch (err) {
+      console.log(`deleteFileError: ${err}`)
+    }
   }
 
-  const updateFileName = (id, title) => {
-    const modifiedFile = { ...files[id], title, isNew: false }
-    setFiles({ ...files, [id]: modifiedFile })
+  const updateFileName = async (id, title, isNew) => {
+    const newPath = path.join(savedLocation, `${title}.md`)
+    const oldPath = path.join(savedLocation, `${files[id].title}.md`)
+    const modifiedFile = { ...files[id], title, isNew: false, path: newPath }
+    const newFiles = { ...files, [id]: modifiedFile }
+    try {
+      if (isNew) {
+        await fileHelper.writeFile(newPath, files[id].body)
+      } else {
+        await fileHelper.renameFile(oldPath, newPath)
+      }
+      setFiles(newFiles)
+      saveFilesToStore(newFiles)
+    } catch (err) {
+      console.log(`updateFileNameError:${err}`)
+    }
   }
 
   const fileSearch = keyword => {
@@ -108,6 +128,15 @@ function App() {
       isNew: true
     }
     setFiles({ ...files, [newId]: newFile })
+  }
+
+  const saveCurrentFile = async () => {
+    try {
+      await fileHelper.writeFile(path.join(savedLocation, `${activeFile.title}.md`), activeFile.body)
+      setUnsavedFileIds(unsavedFileIds.filter(id => id !== activeFile.id))
+    } catch (err) {
+      console.log(`saveCurrentFileError:${err}`)
+    }
   }
 
   return (
@@ -148,6 +177,9 @@ function App() {
                   minHeight: '515px'
                 }}
               ></SimpleMDE>
+              <div className="col">
+                <BottomBtn text="保存" onBtnClick={saveCurrentFile} colorClass="btn-primary" icon={faSave}></BottomBtn>
+              </div>
             </>
           ) : (
             <div className="start-page">
