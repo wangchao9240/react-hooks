@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import uuidv4 from 'uuid/v4'
 import FileSearch from './components/FileSearch'
 import FileList from './components/FileList'
@@ -15,11 +15,14 @@ import "easymde/dist/easymde.min.css"
 
 
 // require node.js modules
+const fs = window.require('fs')
 const path = window.require('path')
 const { remote } = window.require('electron')
 const Store = window.require('electron-store')
 
 const fileStore = new Store({ name: 'Files Data' })
+
+console.log(fileStore.get('files'))
 
 const saveFilesToStore = files => {
   // we don't have to store all infomations in file system, eg: isNew, body, etc
@@ -36,6 +39,17 @@ const saveFilesToStore = files => {
   fileStore.set('files', filesStoreObj)
 }
 
+const updateLocalFiles = (files) => new Promise(resolve => {
+  Object.values(files).map(item => {
+    fs.stat(item.path, (err, stats) => {
+      if (err) resolve({ status: '99', id: item.id })
+    })
+  })
+  setTimeout(() => {
+    resolve({ status: '000' })
+  }, 800);
+})
+
 function App() {
   const [files, setFiles] = useState(fileStore.get('files') || {})
   const [activeFileId, setActiveFileId] = useState('')
@@ -50,6 +64,21 @@ function App() {
   const activeFile = files[activeFileId]
 
   const fileListArr = searchedFiles.length > 0 ? searchedFiles : filesArr
+
+  // check the file store if match the local files when project loaded
+  // if need load, then set files and store
+  useEffect(() => {
+    async function updateFiles() {
+      const needUpdate = await updateLocalFiles(files)
+      if (needUpdate.status !== '000') {
+        const { [needUpdate.id]: value, ...afterFiles } = files
+        setFiles(afterFiles)
+        saveFilesToStore(afterFiles)
+      }
+    }
+    updateFiles()
+  }, [])
+
 
   const fileClick = async fileId => {
     // set current active file
@@ -92,13 +121,18 @@ function App() {
 
   const deleteFile = async id => {
     try {
-      await fileHelper.deleteFile(files[id].path)
-      // filter out the current file id
-      delete files[id]
-      setFiles(files)
-      saveFilesToStore(files)
-      // close the tab if opened
-      tabClose(id)
+      // same as delete files[id]
+      const { [id]: value, ...afterDelete } = files
+      if (files[id].isNew) {
+        setFiles(afterDelete)
+      } else {
+        await fileHelper.deleteFile(files[id].path)
+        // filter out the current file id
+        setFiles(afterDelete)
+        saveFilesToStore(afterDelete)
+        // close the tab if opened
+        tabClose(id)
+      }
     } catch (err) {
       console.log(`deleteFileError: ${err}`)
     }
@@ -111,6 +145,11 @@ function App() {
     const newFiles = { ...files, [id]: modifiedFile }
     try {
       if (isNew) {
+        const existTitle = Object.values(files).find(file => file.title === title)
+        if (existTitle) {
+          alert('已存在相同标题 请重新填写title')
+          return
+        }
         await fileHelper.writeFile(newPath, files[id].body)
       } else {
         await fileHelper.renameFile(oldPath, newPath)
@@ -149,6 +188,23 @@ function App() {
     }
   }
 
+  const importFiles = () => {
+    remote.dialog.showOpenDialog({
+      title: '选择导入的 Markdown 文件',
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        {
+          name: 'Markdown files',
+          extensions: ['md']
+        }
+      ]
+    }).then(res => {
+      console.log(res)
+    }).catch(err => {
+      console.log(`importFilesError: ${err}`)
+    })
+  }
+
   return (
     <div className="App container-fluid px-0">
       <div className="row no-gutters">
@@ -165,7 +221,7 @@ function App() {
               <BottomBtn text="新建" onBtnClick={createFile} colorClass="btn-primary" icon={faPlus}></BottomBtn>
             </div>
             <div className="col">
-              <BottomBtn text="导入" colorClass="btn-success" icon={faFileImport}></BottomBtn>
+              <BottomBtn text="导入" onBtnClick={importFiles} colorClass="btn-success" icon={faFileImport}></BottomBtn>
             </div>
           </div>
         </div>
