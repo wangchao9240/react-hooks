@@ -134,13 +134,14 @@ function App() {
         tabClose(id)
       }
     } catch (err) {
-      console.log(`deleteFileError: ${err}`)
+      console.log(`d eleteFileError: ${err}`)
     }
   }
 
   const updateFileName = async (id, title, isNew) => {
-    const newPath = path.join(savedLocation, `${title}.md`)
-    const oldPath = path.join(savedLocation, `${files[id].title}.md`)
+    // if isNew is false, path should be old dirname + new title
+    const newPath = isNew ? path.join(savedLocation, `${title}.md`) : path.join(path.dirname(files[id].path), `${title}.md`)
+    const oldPath = files[id].path
     const modifiedFile = { ...files[id], title, isNew: false, path: newPath }
     const newFiles = { ...files, [id]: modifiedFile }
     try {
@@ -181,7 +182,7 @@ function App() {
 
   const saveCurrentFile = async () => {
     try {
-      await fileHelper.writeFile(path.join(savedLocation, `${activeFile.title}.md`), activeFile.body)
+      await fileHelper.writeFile(path.join(activeFile.path), activeFile.body)
       setUnsavedFileIds(unsavedFileIds.filter(id => id !== activeFile.id))
     } catch (err) {
       console.log(`saveCurrentFileError:${err}`)
@@ -199,7 +200,37 @@ function App() {
         }
       ]
     }).then(res => {
-      console.log(res)
+      if (Array.isArray(res.filePaths)) {
+        // filter out the path we already have in electron store
+        const filteredPaths = res.filePaths.filter(path => {
+          const alreadyAdded = Object.values(files).find(file => {
+            console.log(file.path, path)
+            return file.path === path
+          })
+          return !alreadyAdded
+        })
+        // extend the path array to an array contains files info
+        // [{ id: '1', path: '', title: 'XX' }]
+        const importFilesArr = filteredPaths.map(filepath => {
+          return {
+            id: uuidv4(),
+            title: path.basename(filepath, path.extname(filepath)),
+            path: filepath
+          }
+        })
+        // get the new files object in flattenArr
+        const newFiles = { ...files, ...flattenArr(importFilesArr) }
+        // setState and update electron store
+        setFiles(newFiles)
+        saveFilesToStore(newFiles)
+        if (importFilesArr.length) {
+          remote.dialog.showMessageBox({
+            type: 'info',
+            title: `成功导入了${importFilesArr.length}个文件`,
+            message: `成功导入了${importFilesArr.length}个文件`
+          })
+        }
+      }
     }).catch(err => {
       console.log(`importFilesError: ${err}`)
     })
