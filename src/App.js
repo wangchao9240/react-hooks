@@ -3,10 +3,11 @@ import uuidv4 from 'uuid/v4'
 import FileSearch from './components/FileSearch'
 import FileList from './components/FileList'
 import BottomBtn from './components/BottomBtn'
-import { faPlus, faFileImport, faSave } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faFileImport } from '@fortawesome/free-solid-svg-icons'
 import TabList from './components/TabList'
 import { flattenArr, objToArr } from './utils/helper'
 import fileHelper from './utils/fileHelper'
+import useIpcRenderer from './hooks/useIpcRenderer'
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css'
 
@@ -16,7 +17,7 @@ import "easymde/dist/easymde.min.css"
 // require node.js modules
 const fs = window.require('fs')
 const path = window.require('path')
-const { remote, ipcRenderer } = window.require('electron')
+const { remote } = window.require('electron')
 const Store = window.require('electron-store')
 
 const fileStore = new Store({ name: 'Files Data' })
@@ -39,6 +40,7 @@ const saveFilesToStore = files => {
 }
 
 const updateLocalFiles = (files) => new Promise(resolve => {
+  // eslint-disable-next-line
   Object.values(files).map(item => {
     fs.stat(item.path, (err, stats) => {
       if (err) resolve({ status: '99', id: item.id })
@@ -76,17 +78,7 @@ function App() {
       }
     }
     updateFiles()
-  }, [])
-
-  useEffect(() => {
-    const callback = () => {
-      console.log('hello from menu')
-    }
-    ipcRenderer.on('create-new-file', callback)
-    return () => {
-      ipcRenderer.removeListener('create-new-file', callback)
-    }
-  })
+  },[])
 
   const fileClick = async fileId => {
     // set current active file
@@ -121,6 +113,7 @@ function App() {
   }
 
   const fileChange = (id, val) => {
+    if (val === files[id].body) return
     const newFile = { ...files[id], body: val }
     setFiles({ ...files, [id]: newFile })
     // udate unsavedIds
@@ -190,6 +183,7 @@ function App() {
 
   const saveCurrentFile = async () => {
     try {
+      if (!activeFile || !activeFile.path) return
       await fileHelper.writeFile(path.join(activeFile.path), activeFile.body)
       setUnsavedFileIds(unsavedFileIds.filter(id => id !== activeFile.id))
     } catch (err) {
@@ -244,6 +238,12 @@ function App() {
     })
   }
 
+  useIpcRenderer({
+    'create-new-file': createFile,
+    'import-file': importFiles,
+    'save-edit-file': saveCurrentFile,
+  })
+
   return (
     <div className="App container-fluid px-0">
       <div className="row no-gutters">
@@ -282,9 +282,9 @@ function App() {
                   minHeight: '515px'
                 }}
               ></SimpleMDE>
-              <div className="col">
+              {/* <div className="col">
                 <BottomBtn text="保存" onBtnClick={saveCurrentFile} colorClass="btn-primary" icon={faSave}></BottomBtn>
-              </div>
+              </div> */}
             </>
           ) : (
             <div className="start-page">

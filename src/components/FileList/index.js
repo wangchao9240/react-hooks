@@ -7,10 +7,6 @@ import PropTypes from 'prop-types'
 import useContextMenu from '../../hooks/useContextMneu'
 import { getParentNode } from '../../utils/helper'
 
-// laod nodejs modules
-const { remote } = window.require('electron')
-const { Menu, MenuItem } = remote
-
 const FileList = ({ files, onFileClick, onSaveEdit, onFileDelete }) => {
   const [editStatus, setEditStatus] = useState(false)
   const [value, setValue] = useState('')
