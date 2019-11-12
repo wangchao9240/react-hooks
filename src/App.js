@@ -13,11 +13,10 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import SimpleMDE from "react-simplemde-editor"
 import "easymde/dist/easymde.min.css"
 
-
 // require node.js modules
 const fs = window.require('fs')
 const path = window.require('path')
-const { remote } = window.require('electron')
+const { remote, ipcRenderer } = window.require('electron')
 const Store = window.require('electron-store')
 
 const fileStore = new Store({ name: 'Files Data' })
@@ -79,6 +78,15 @@ function App() {
     updateFiles()
   }, [])
 
+  useEffect(() => {
+    const callback = () => {
+      console.log('hello from menu')
+    }
+    ipcRenderer.on('create-new-file', callback)
+    return () => {
+      ipcRenderer.removeListener('create-new-file', callback)
+    }
+  })
 
   const fileClick = async fileId => {
     // set current active file

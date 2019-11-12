@@ -8,28 +8,28 @@ let template = [
         label: '新建',
         accelerator: 'CmdOrCtrl+N',
         click: (menuItem, browserWindow, event) => {
-    
+          browserWindow.webContents.send('create-new-file')
         }
       },
       {
         label: '保存',
         accelerator: 'CmdOrCtrl+S',
         click: (menuItem, browserWindow, event) => {
-    
+          browserWindow.webContents.send('save-edit-file')
         }
       },
       {
         label: '搜索',
         accelerator: 'CmdOrCtrl+F',
         click: (menuItem, browserWindow, event) => {
-    
+          browserWindow.webContents.send('search-file')
         }
       },
       {
         label: '导入',
         accelerator: 'CmdOrCtrl+O',
         click: (menuItem, browserWindow, event) => {
-    
+          browserWindow.webContents.send('import-file')
         }
       }
     ]
@@ -127,3 +127,66 @@ let template = [
     ]
   }
 ]
+
+if (process.platform === 'darwin') {
+  const name = app.getName()
+  template.unshift({
+    label: name,
+    submenu: [
+      {
+        label: `关于${name}`,
+        role: 'about'
+      },
+      {
+        type: 'separator'
+      },
+      {
+        label: '设置',
+        accelerator: 'Command+,',
+        click: () => {}
+      },
+      {
+        label: '服务',
+        role: 'services',
+        submenu: []
+      },
+      {
+        type: 'separator'
+      },
+      {
+        label: `隐藏${name}`,
+        accelerator: 'Command+H',
+        role: 'hide'
+      },
+      {
+        label: '隐藏其他',
+        accelerator: 'Command+Alt+H',
+        role: 'hideothers'
+      },
+      {
+        label: '显示全部',
+        role: 'unhide'
+      },
+      {
+        type: 'separator'
+      },
+      {
+        label: '退出',
+        accelerator: 'Command+Q',
+        click: () => {
+          app.quit()
+        }
+      }
+    ]
+  })
+}  else {
+  template[0].submenu.push({
+    label: '设置',
+    accelerator: 'Ctrl+,',
+    click: () => {
+      ipcMain.emit('open-settings-window')
+    }
+  })
+}
+
+module.exports = template
