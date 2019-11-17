@@ -5,7 +5,7 @@ import FileList from './components/FileList'
 import BottomBtn from './components/BottomBtn'
 import { faPlus, faFileImport } from '@fortawesome/free-solid-svg-icons'
 import TabList from './components/TabList'
-import { flattenArr, objToArr } from './utils/helper'
+import { flattenArr, objToArr, timestampToString } from './utils/helper'
 import fileHelper from './utils/fileHelper'
 import useIpcRenderer from './hooks/useIpcRenderer'
 import './App.css';
@@ -17,23 +17,24 @@ import "easymde/dist/easymde.min.css"
 // require node.js modules
 const fs = window.require('fs')
 const path = window.require('path')
-const { remote } = window.require('electron')
+const { remote, ipcRenderer } = window.require('electron')
 const Store = window.require('electron-store')
 
 const fileStore = new Store({ name: 'Files Data' })
 const settingStore = new Store({ name: 'settings' })
-
-console.log(fileStore.get('files'))
+const getAutoSync = () => ['accessKey', 'secretKey', 'bucketName', 'enableAutoSync'].every(key => !!settingStore.get(key))
 
 const saveFilesToStore = files => {
   // we don't have to store all infomations in file system, eg: isNew, body, etc
   const filesStoreObj = objToArr(files).reduce((result, file) => {
-    const { id, path, title, createdAt } = file
+    const { id, path, title, createdAt, isSynced, updatedAt } = file
     result[id] = {
       id,
       path,
       title,
-      createdAt
+      createdAt,
+      isSynced,
+      updatedAt
     }
     return result
   }, {})
@@ -187,6 +188,7 @@ function App() {
       if (!activeFile || !activeFile.path) return
       await fileHelper.writeFile(path.join(activeFile.path), activeFile.body)
       setUnsavedFileIds(unsavedFileIds.filter(id => id !== activeFile.id))
+      if (getAutoSync()) ipcRenderer.send('upload-file', { key: `${activeFile.title}.md`, path: activeFile.path })
     } catch (err) {
       console.log(`saveCurrentFileError:${err}`)
     }
@@ -239,10 +241,19 @@ function App() {
     })
   }
 
+  const activeFileUploaded = () => {
+    const { id } = activeFile
+    const modifiedFile = { ...files[id], isSynced: true, updatedAt: new Date().getTime() }
+    const newFiles = { ...files, [id]: modifiedFile }
+    setFiles(newFiles)
+    saveFilesToStore(newFiles)
+  }
+
   useIpcRenderer({
     'create-new-file': createFile,
     'import-file': importFiles,
     'save-edit-file': saveCurrentFile,
+    'active-file-uploaded': activeFileUploaded
   })
 
   return (
@@ -283,6 +294,9 @@ function App() {
                   minHeight: '515px'
                 }}
               ></SimpleMDE>
+              { activeFile.isSynced ? (
+                <span className="sync-status">已同步，上次同步{timestampToString(activeFile.updatedAt)}</span>
+              ) : null }
               {/* <div className="col">
                 <BottomBtn text="保存" onBtnClick={saveCurrentFile} colorClass="btn-primary" icon={faSave}></BottomBtn>
               </div> */}

@@ -18,7 +18,6 @@ class QiniuManager {
   getBucketDomain() {
     const reqURL = `http://api.qiniu.com/v6/domain/list?tbl=${this.bucket}`
     const digest = qiniu.util.generateAccessToken(this.mac, reqURL)
-    console.log('trigger here')
     return new Promise((resolve, reject) => {
       qiniu.rpc.postWithoutForm(reqURL, digest, this.handleCallback(resolve, reject))
     })
@@ -29,7 +28,7 @@ class QiniuManager {
     // step 2 send the request to download link, return a readable stream
     // step 3 create a writeable stream and pipe to it
     // step 4 return a promise based result
-    this.generateDownloadLink(key).then(link => {
+    return this.generateDownloadLink(key).then(link => {
       const timeStamp = new Date().getTime()
       const url = `${link}?timestamp=${timeStamp}`
       return axios({
@@ -43,8 +42,12 @@ class QiniuManager {
     }).then(response => {
       const writer = fs.createWriteStream(downloadPath)
       response.data.pipe(writer)
+      return new Promise((resolve, reject) => {
+        writer.on('finish', resolve)
+        writer.on('error', reject)
+      })
     })
-    .catch(err => console.log(err))
+    .catch(err => Promise.reject({ err: err.response }))
   }
 
   generateDownloadLink(key) {
@@ -59,10 +62,6 @@ class QiniuManager {
         throw Error('域名未找到，请查看储存空间是否过期')
       }
     })
-  }
-
-  publicDownloadUrl() {
-    
   }
 
   uploadFile(key, localFilePath) {
