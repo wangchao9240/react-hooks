@@ -50,6 +50,12 @@ class QiniuManager {
     .catch(err => Promise.reject({ err: err.response }))
   }
 
+  getStat(key) {
+    return new Promise((resolve, reject) => {
+      this.bucketManager.stat(this.bucket, key, this.handleCallback(resolve, reject))
+    })
+  }
+
   generateDownloadLink(key) {
     // this.getBucketDomain().then
     const domainPromise = this.publicBucketDomain ? Promise.resolve([this.publicBucketDomain]) : this.getBucketDomain()

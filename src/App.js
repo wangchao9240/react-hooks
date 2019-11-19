@@ -8,6 +8,7 @@ import TabList from './components/TabList'
 import { flattenArr, objToArr, timestampToString } from './utils/helper'
 import fileHelper from './utils/fileHelper'
 import useIpcRenderer from './hooks/useIpcRenderer'
+import Loader from './components/Loader'
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css'
 
@@ -59,6 +60,7 @@ function App() {
   const [openedFileIds, setOpenedFileIds] = useState([])
   const [unsavedFileIds, setUnsavedFileIds] = useState([])
   const [searchedFiles, setSearchedFiles] = useState([])
+  const [isLoading, setLoading] = useState(false)
   const filesArr = objToArr(files)
   const savedLocation = settingStore.get('savedFileLocation') || remote.app.getPath('documents')
 
@@ -86,13 +88,18 @@ function App() {
     // set current active file
     setActiveFileId(fileId)
     const currentFile = files[fileId]
+    const { id, title, path, isLoaded } = currentFile
     if (!currentFile.isLoaded) {
-      try {
-        const value = await fileHelper.readFile(currentFile.path)
-        const newFile = { ...files[fileId], body: value, isLoaded: true }
-        setFiles({ ...files, [fileId]: newFile })
-      } catch (err) {
-        console.log(`fileClickError: ${err}`)
+      if (getAutoSync()) {
+        ipcRenderer.send('download-file', { key: `${title}.md`, path, id })
+      } else {
+        try {
+          const value = await fileHelper.readFile(currentFile.path)
+          const newFile = { ...files[fileId], body: value, isLoaded: true }
+          setFiles({ ...files, [fileId]: newFile })
+        } catch (err) {
+          console.log(`fileClickError: ${err}`)
+        }
       }
     }
     // if oepned files don't have the currentId
@@ -249,15 +256,49 @@ function App() {
     saveFilesToStore(newFiles)
   }
 
+  const activeFileDownloaded = (event, message) => {
+    const currentFile = files[message.id]
+    const { id, path } = currentFile
+    fileHelper.readFile(path).then(value => {
+      let newFile
+      if (message.status === 'download-success') {
+        newFile = { ...files[id], body: value, isLoaded: true, isSynced: true, updatedAt: new Date().getTime() }
+      } else {
+        newFile = { ...files[id], body: value, isLoaded: true }
+      }
+      const newFiles = { ...files, [id]: newFile }
+      setFiles(newFiles)
+      saveFilesToStore(newFiles)
+    })
+  }
+
+  const filesUploaded = () => {
+    const newFiles = objToArr(files).reduce((result, file) => {
+      const currentTime = new Date().getTime()
+      result[file.id] = {
+        ...files[file.id],
+        isSynced: true,
+        updatedAt: currentTime
+      }
+      return result
+    }, {})
+    setFiles(newFiles)
+    saveFilesToStore(newFiles)
+  }
+
   useIpcRenderer({
     'create-new-file': createFile,
     'import-file': importFiles,
     'save-edit-file': saveCurrentFile,
-    'active-file-uploaded': activeFileUploaded
+    'active-file-uploaded': activeFileUploaded,
+    'file-downloaded': activeFileDownloaded,
+    'loading-status': (message, status) => setLoading(status),
+    'files-uploaded': filesUploaded
   })
 
   return (
     <div className="App container-fluid px-0">
+      { isLoading ? <Loader></Loader> : null }
       <div className="row no-gutters">
         <div className="col bg-light left-panel">
           <FileSearch onFileSearch={fileSearch}></FileSearch>
